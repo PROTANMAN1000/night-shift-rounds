@@ -1,0 +1,643 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0E1420">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Rounds">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" href="apple-touch-icon.png">
+<style>
+:root { padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; }
+img { max-width: 100%; }
+[hidden] { display: none !important; }
+button { -webkit-tap-highlight-color: transparent; }
+</style>
+<title>Night Shift Rounds</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<style>
+/* Layout: one phone-width column; sticky header with 24h clock and tabs; timeline as a time rail (24h stamps left, task rows right) */
+:root {
+  /* dark-first: built for a dim unit at 0300 */
+  --bg: #0E1420;
+  --surface: #161E2D;
+  --surface-2: #1F2939;
+  --line: #2B364A;
+  --fg: #E7EBF3;
+  --muted: #8C98AE;
+  --accent: #F0A93B;
+  --accent-ink: #1B1205;
+  --due: #F2786D;
+  --due-soft: rgba(242,120,109,.14);
+  --done: #57C595;
+  --done-ink: #06180F;
+  --now: #84B8FF;
+  --now-soft: rgba(132,184,255,.14);
+  --f-display: "Barlow Condensed", "Arial Narrow", system-ui, sans-serif;
+  --f-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --bg: #F2F4F8; --surface: #FFFFFF; --surface-2: #E8ECF3; --line: #D3D9E4;
+    --fg: #141B29; --muted: #59647A; --accent: #A86200; --accent-ink: #FFFFFF;
+    --due: #C2372C; --due-soft: rgba(194,55,44,.10); --done: #1C8556; --done-ink: #FFFFFF;
+    --now: #2C67C6; --now-soft: rgba(44,103,198,.10);
+    color-scheme: light;
+  }
+}
+:root[data-theme="light"] {
+  --bg: #F2F4F8; --surface: #FFFFFF; --surface-2: #E8ECF3; --line: #D3D9E4;
+  --fg: #141B29; --muted: #59647A; --accent: #A86200; --accent-ink: #FFFFFF;
+  --due: #C2372C; --due-soft: rgba(194,55,44,.10); --done: #1C8556; --done-ink: #FFFFFF;
+  --now: #2C67C6; --now-soft: rgba(44,103,198,.10);
+  color-scheme: light;
+}
+
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--fg);
+  font: 15px/1.45 var(--f-body);
+  padding-inline: 16px; padding-block: 0 40px;
+}
+.wrap { max-width: 430px; margin: 0 auto; }
+button, input { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.mono { font-family: var(--f-mono); font-variant-numeric: tabular-nums; }
+
+/* Header */
+header {
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5;
+  background: var(--bg); padding-block: 14px 10px;
+  border-bottom: 1px solid var(--line);
+  margin-inline: -16px; padding-inline: 16px;
+}
+.hrow { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; max-width: 430px; margin: 0 auto; }
+.brand { font: 700 1.55rem/1 var(--f-display); letter-spacing: .01em; text-transform: uppercase; }
+.brand small { display: block; font: 500 .72rem/1.3 var(--f-body); letter-spacing: .08em; color: var(--muted); margin-top: 4px; }
+.clock { text-align: right; }
+.clock .t { font: 600 1.9rem/1 var(--f-mono); font-variant-numeric: tabular-nums; color: var(--accent); }
+.clock .l { font-size: .7rem; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.tabs { display: grid; grid-template-columns: repeat(2, 1fr); gap: 4px; max-width: 430px; margin: 12px auto 0; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 3px; }
+.tabs button { border: 0; background: transparent; padding: 10px 4px; min-height: 40px; border-radius: 7px; font-weight: 600; font-size: .9rem; color: var(--muted); }
+.tabs button[aria-selected="true"] { background: var(--surface-2); color: var(--fg); }
+.hright { display: flex; align-items: flex-end; gap: 12px; }
+.gear { border: 1px solid var(--line); background: var(--surface); border-radius: 10px; width: 44px; height: 44px; display: grid; place-items: center; color: var(--muted); padding: 0; }
+.gear svg { width: 20px; height: 20px; }
+.gear[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.set-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 18px; }
+.set-head h2 { margin: 0; }
+
+/* Notices */
+.notice { display: flex; gap: 10px; align-items: center; justify-content: space-between; flex-wrap: wrap; margin-top: 14px; padding: 10px 12px; border: 1px dashed var(--accent); border-radius: 10px; font-size: .88rem; }
+.notice p { margin: 0; min-width: 0; flex: 1 1 220px; }
+.btn { border: 1px solid var(--line); background: var(--surface); padding: 10px 14px; min-height: 44px; border-radius: 8px; font-weight: 600; font-size: .88rem; }
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.btn.danger { background: var(--due); color: var(--done-ink); border-color: var(--due); }
+.btn.ghost { background: transparent; }
+
+/* Summary */
+.summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 14px; }
+.stat { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; min-width: 0; }
+.stat .k { font-size: .68rem; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.stat .v { font: 600 1.35rem/1.2 var(--f-mono); font-variant-numeric: tabular-nums; }
+.stat.due .v { color: var(--due); }
+.stat.next .v { color: var(--now); }
+
+/* Timeline rail */
+.rail { margin-top: 18px; display: grid; gap: 0; }
+.block { display: grid; grid-template-columns: 64px 1fr; gap: 12px; padding-block: 12px; border-top: 1px solid var(--line); }
+.block:first-child { border-top: 0; }
+.stamp { font: 600 1.15rem/1.2 var(--f-mono); font-variant-numeric: tabular-nums; color: var(--muted); }
+.stamp .st { display: inline-block; margin-top: 6px; font: 600 .62rem/1 var(--f-body); letter-spacing: .08em; text-transform: uppercase; padding: 4px 6px; border-radius: 999px; background: var(--surface-2); color: var(--muted); }
+.block.overdue .stamp { color: var(--due); }
+.block.now { background: var(--now-soft); margin-inline: -8px; padding-inline: 8px; border-radius: 10px; }
+.block.now .stamp { color: var(--now); }
+.block.done .stamp { color: var(--done); opacity: .8; }
+.block.done .rows { opacity: .65; }
+.rows { display: grid; gap: 10px; min-width: 0; }
+.trow { display: grid; gap: 6px; }
+.tname { font-weight: 600; font-size: .92rem; }
+.tname span { font-weight: 400; color: var(--muted); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip {
+  border: 1.5px solid var(--line); background: var(--surface);
+  border-radius: 999px; padding: 8px 14px; min-height: 44px;
+  font: 600 .88rem/1 var(--f-mono); font-variant-numeric: tabular-nums;
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.chip .x { font: 500 .72rem/1 var(--f-body); color: var(--muted); }
+.chip[aria-pressed="true"] { background: var(--done); border-color: var(--done); color: var(--done-ink); }
+.chip[aria-pressed="true"] .x { color: var(--done-ink); }
+.chip[aria-pressed="true"]::before { content: "✓"; }
+.block.overdue .chip[aria-pressed="false"] { border-color: var(--due); }
+.chip.unit { font-family: var(--f-body); font-size: .85rem; }
+.empty { margin-top: 24px; padding: 20px; text-align: center; color: var(--muted); border: 1px dashed var(--line); border-radius: 12px; }
+
+/* Patients */
+h2 { font: 700 1.15rem/1.2 var(--f-display); text-transform: uppercase; letter-spacing: .03em; margin: 22px 0 8px; }
+.hint { color: var(--muted); font-size: .86rem; margin: 0 0 10px; max-width: 60ch; }
+.slots { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
+.slot { border: 1px solid var(--line); background: var(--surface); border-radius: 8px; padding: 0; min-height: 44px; font: 600 .95rem/1 var(--f-mono); font-variant-numeric: tabular-nums; color: var(--muted); }
+.slot.on { background: var(--surface-2); color: var(--fg); border-color: var(--accent); }
+.slot.sel { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.editor { margin-top: 14px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px; }
+.ed-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
+.ed-head strong { font: 700 1.3rem/1 var(--f-display); text-transform: uppercase; }
+.task { display: grid; grid-template-columns: auto 1fr; gap: 4px 10px; align-items: center; padding-block: 10px; border-top: 1px solid var(--line); }
+.task input[type="checkbox"] { width: 24px; height: 24px; accent-color: var(--accent); }
+.task label { font-weight: 600; }
+.task .sub { grid-column: 2; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; min-width: 0; }
+.times { width: 100%; max-width: 260px; min-height: 44px; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font-size: 16px; font-family: var(--f-mono); font-variant-numeric: tabular-nums; }
+.task.off .sub { opacity: .45; }
+.sel-time { width: auto; max-width: 100%; }
+.mini { font-size: .8rem; color: var(--muted); }
+.next { font-size: .82rem; color: var(--muted); flex-basis: 100%; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.seg button { border: 0; background: transparent; padding: 0 12px; min-height: 40px; font-size: .84rem; font-weight: 600; color: var(--muted); }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+.base-sum { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; padding-block: 12px; border-top: 1px solid var(--line); }
+.base-text { min-width: 0; flex: 1 1 200px; font-size: .9rem; }
+.base-text .k { font-size: .68rem; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); font-weight: 600; margin-right: 4px; }
+.off-note { color: var(--due); font-size: .84rem; }
+.foot { margin-top: 28px; padding-top: 16px; border-top: 1px solid var(--line); display: grid; gap: 12px; }
+.foot p { margin: 0; font-size: .82rem; color: var(--muted); max-width: 62ch; }
+.confirm { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.toast { position: fixed; left: 50%; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--fg); color: var(--bg); padding: 8px 14px; border-radius: 8px; font-size: .88rem; font-weight: 600; z-index: 10; }
+@media (max-width: 380px) {
+  .block { grid-template-columns: 54px 1fr; gap: 10px; }
+  .stat .v { font-size: 1.15rem; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .chip, .slot, .tabs button { transition: background-color .15s, border-color .15s, color .15s; }
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="hrow">
+    <div class="brand">Night Shift Rounds<small>PCNA task timeline · 1900–0730</small></div>
+    <div class="hright">
+      <div class="clock"><div class="t mono" id="clock">----</div><div class="l">Now</div></div>
+      <button class="gear" id="settings-btn" aria-label="Settings" aria-pressed="false">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+      </button>
+    </div>
+  </div>
+  <div class="tabs" role="tablist">
+    <button role="tab" id="tab-timeline" data-tab="timeline">Timeline</button>
+    <button role="tab" id="tab-patients" data-tab="patients">Patients</button>
+  </div>
+</header>
+
+<main class="wrap" id="app"></main>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+(function () {
+  "use strict";
+  var KEY = "nsr-v1";
+  var TASKS = [
+    { key: "vitals", label: "Vitals" },
+    { key: "tele", label: "Change tele battery" },
+    { key: "dinner", label: "Check dinner" },
+    { key: "accu", label: "Accucheck" },
+    { key: "ortho", label: "Orthostatic vitals" },
+    { key: "turns", label: "Q2 turn" },
+    { key: "bladder", label: "Bladder scan" },
+    { key: "weight", label: "Weight" }
+  ];
+  var KEYS = TASKS.map(function (t) { return t.key; });
+  var LABEL = {}; TASKS.forEach(function (t) { LABEL[t.key] = t.label; });
+  var ACCU_LABEL = { achs: "AC/HS", q6: "Q6" };
+  // Settings lists the two accucheck presets separately
+  var SETTING_ROWS = [
+    { key: "vitals", label: "Vitals" }, { key: "tele", label: "Change tele battery" }, { key: "dinner", label: "Check dinner" },
+    { key: "achs", label: "Accucheck AC/HS" }, { key: "q6", label: "Accucheck Q6" }, { key: "ortho", label: "Orthostatic vitals" },
+    { key: "turns", label: "Q2 turn" }, { key: "bladder", label: "Bladder scan" }, { key: "weight", label: "Weight" }
+  ];
+
+  function defaults() {
+    return { vitals: [22, 2, 6], tele: [22], dinner: [22], achs: [21], q6: [0, 6], accu: [21], ortho: [6], turns: [20, 22, 0, 2, 4, 6], bladder: [4], weight: [6] };
+  }
+  function newPatient(n, D) {
+    var t = {};
+    KEYS.forEach(function (k) { t[k] = { on: ["vitals", "dinner", "tele", "weight"].indexOf(k) > -1, times: D[k].slice() }; });
+    t.weight.mode = "standing";
+    t.accu.mode = "achs"; t.accu.times = D.achs.slice();
+    return { n: n, tasks: t };
+  }
+  function exampleState() {
+    var D = defaults();
+    var S = { example: true, migrated2: true, migratedAchs: true, migratedAccu: true, defaults: D, unit: { qc: { on: true, times: [1] } }, patients: {}, done: {}, sel: null, tab: "timeline" };
+    var spec = {
+      1: ["turns", "accu:q6"],
+      2: ["accu:achs", "weight:bed"],
+      4: ["bladder"],
+      5: ["accu:achs"],
+      7: ["turns", "weight:bed"],
+      9: ["accu:q6"]
+    };
+    Object.keys(spec).forEach(function (n) {
+      var p = newPatient(+n, D);
+      spec[n].forEach(function (s) {
+        var parts = s.split(":");
+        p.tasks[parts[0]].on = true;
+        if (parts[0] === "weight" && parts[1]) p.tasks.weight.mode = parts[1];
+        if (parts[0] === "accu") { p.tasks.accu.mode = parts[1]; p.tasks.accu.times = D[parts[1]].slice(); }
+      });
+      S.patients[n] = p;
+    });
+    S.patients[9].bundle = true;
+    S.patients[1].tasks.turns.last = 19; S.patients[1].tasks.turns.times = turnsFrom(19);
+    S.patients[7].tasks.turns.last = 20; S.patients[7].tasks.turns.times = turnsFrom(20);
+    // example: the 2000 round is already finished
+    Object.keys(S.patients).forEach(function (n) {
+      KEYS.forEach(function (k) {
+        var t = S.patients[n].tasks[k];
+        [20, 21].forEach(function (h) { if (t.on && t.times.indexOf(h) > -1) S.done[n + "|" + k + "|" + h] = true; });
+      });
+    });
+    S.sel = 1;
+    return S;
+  }
+  function blank() {
+    return { example: false, migrated2: true, migratedAchs: true, migratedAccu: true, defaults: defaults(), unit: { qc: { on: true, times: [1] } }, patients: {}, done: {}, sel: null, tab: "patients" };
+  }
+  function load() {
+    try { var s = localStorage.getItem(KEY); if (s) return JSON.parse(s); } catch (e) {}
+    return null;
+  }
+  function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} }
+
+  var S = load() || exampleState();
+  if (!S.unit) S.unit = { qc: { on: true, times: [1] } };
+  (function migrate() {
+    var D = defaults();
+    if (!S.migratedAchs) {
+      if (S.defaults.achs && S.defaults.achs.join() === "20") S.defaults.achs = [21];
+      Object.keys(S.patients).forEach(function (n) { var t = S.patients[n].tasks.achs; if (t && t.times.join() === "20") t.times = [21]; });
+      S.migratedAchs = true;
+    }
+    if (!S.migratedAccu) {
+      Object.keys(S.patients).forEach(function (n) {
+        var tk = S.patients[n].tasks, a = tk.achs, q = tk.q6, acc;
+        if (q && q.on && !(a && a.on)) acc = { on: true, mode: "q6", times: q.times.slice() };
+        else if (a && a.on) acc = { on: true, mode: "achs", times: sortHours(a.times.concat(q && q.on ? q.times.filter(function (h) { return a.times.indexOf(h) < 0; }) : [])) };
+        else acc = { on: false, mode: "achs", times: (S.defaults.achs || D.achs).slice() };
+        tk.accu = acc; delete tk.achs; delete tk.q6;
+      });
+      Object.keys(S.done).forEach(function (k) {
+        var parts = k.split("|");
+        if (parts[1] === "achs" || parts[1] === "q6") { delete S.done[k]; S.done[parts[0] + "|accu|" + parts[2]] = true; }
+      });
+      S.migratedAccu = true;
+    }
+    ["achs", "q6"].forEach(function (k) { if (!S.defaults[k]) S.defaults[k] = D[k]; });
+    KEYS.forEach(function (k) { if (!S.defaults[k]) S.defaults[k] = D[k]; });
+    Object.keys(S.patients).forEach(function (n) {
+      KEYS.forEach(function (k) { if (!S.patients[n].tasks[k]) S.patients[n].tasks[k] = { on: false, times: S.defaults[k].slice() }; });
+      if (!S.migrated2) ["dinner", "tele", "weight"].forEach(function (k) { S.patients[n].tasks[k].on = true; });
+    });
+    S.migrated2 = true;
+  })();
+
+  // Shift runs 1900 -> 0730. ord() orders hours across midnight.
+  function ord(h) { return (h - 19 + 24) % 24; }
+  function fmt(h) { return (h < 10 ? "0" : "") + h + "00"; }
+  function sortHours(a) { return a.slice().sort(function (x, y) { return ord(x) - ord(y); }); }
+  function fmtList(a) { return sortHours(a).map(fmt).join(" "); }
+  function parseTimes(str) {
+    var out = [];
+    String(str).split(/[\s,;]+/).forEach(function (tok) {
+      if (!tok) return;
+      var n = parseInt(tok.replace(/[^0-9]/g, ""), 10);
+      if (isNaN(n)) return;
+      var h = tok.replace(/[^0-9]/g, "").length >= 3 ? Math.floor(n / 100) : n;
+      if (h >= 0 && h <= 23 && out.indexOf(h) < 0) out.push(h);
+    });
+    return sortHours(out);
+  }
+  // Q2 turns: every 2 hours after the last turn, through 0700
+  function turnsFrom(last) {
+    var out = [];
+    for (var k = 1; k <= 12; k++) {
+      var h = (last + 2 * k) % 24;
+      if (ord(h) > 12) { if (out.length || ord(last) <= 12) break; else continue; }
+      out.push(h);
+    }
+    return out;
+  }
+  function nowOrd() {
+    var d = new Date(), o = ord(d.getHours());
+    if (o === 12 && d.getMinutes() < 30) return 12; // 0700-0729, last half hour of the shift
+    return o >= 12 ? null : o; // outside the shift: nothing is overdue
+  }
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
+
+  var app = document.getElementById("app");
+  var toastEl = document.getElementById("toast"), toastT;
+  function toast(msg) {
+    toastEl.textContent = msg; toastEl.hidden = false;
+    clearTimeout(toastT); toastT = setTimeout(function () { toastEl.hidden = true; }, 1800);
+  }
+  var confirming = false;
+
+  function clock() {
+    var d = new Date();
+    document.getElementById("clock").textContent = (d.getHours() < 10 ? "0" : "") + d.getHours() + (d.getMinutes() < 10 ? "0" : "") + d.getMinutes();
+  }
+
+  function buildSchedule() {
+    var byHour = {};
+    function add(h, task, item) {
+      byHour[h] = byHour[h] || {};
+      (byHour[h][task] = byHour[h][task] || []).push(item);
+    }
+    Object.keys(S.patients).map(Number).sort(function (a, b) { return a - b; }).forEach(function (n) {
+      var p = S.patients[n];
+      KEYS.forEach(function (k) {
+        var t = p.tasks[k];
+        if (!t.on) return;
+        t.times.forEach(function (h) {
+          if (p.bundle && k === "vitals" && h === 2) return; // bundled care: let them sleep through 0200 vitals
+          add(h, k, { n: n, key: n + "|" + k + "|" + h, extra: k === "weight" ? t.mode : k === "accu" ? ACCU_LABEL[t.mode] || "" : "" });
+        });
+      });
+    });
+    if (S.unit.qc.on) S.unit.qc.times.forEach(function (h) { add(h, "qc", { unit: true, key: "unit|qc|" + h }); });
+    return byHour;
+  }
+
+  function banner() {
+    if (!S.example) return "";
+    return '<div class="notice"><p>Example shift with sample patients. Clear it to set up your own assignment.</p>' +
+      '<button class="btn primary" data-act="start-own">Start my shift</button></div>';
+  }
+
+  function renderTimeline() {
+    var sched = buildSchedule();
+    var hours = sortHours(Object.keys(sched).map(Number));
+    var no = nowOrd();
+    if (!hours.length) {
+      app.innerHTML = banner() + '<div class="empty">No tasks yet. Open <strong>Patients</strong>, tap a slot, and turn on the tasks for that patient.</div>' + footer();
+      return;
+    }
+    var total = 0, doneN = 0, overdue = 0, next = null, html = "";
+    hours.forEach(function (h) {
+      var groups = sched[h], items = [];
+      Object.keys(groups).forEach(function (k) { items = items.concat(groups[k]); });
+      var left = items.filter(function (i) { return !S.done[i.key]; }).length;
+      total += items.length; doneN += items.length - left;
+      var o = ord(h), state;
+      // most tasks start an hour early; Q2 turns and the unit QC check happen on the hour
+      var hasEarly = Object.keys(groups).some(function (k) { return ON_TIME.indexOf(k) < 0; });
+      if (left === 0) state = "done";
+      else if (no !== null && o < no) { state = "overdue"; overdue += left; }
+      else if (no !== null && (o === no || (hasEarly && o - 1 === no))) state = "now";
+      else state = "upcoming";
+      if (next === null && left > 0 && state !== "overdue") next = h;
+      var order = ["qc"].concat(KEYS);
+      var rows = order.filter(function (k) { return groups[k]; }).map(function (k) {
+        var list = groups[k];
+        if (k === "qc") {
+          var it = list[0];
+          return '<div class="trow"><div class="tname">Glucometer control check</div><div class="chips">' +
+            '<button class="chip unit" data-done="' + it.key + '" aria-pressed="' + !!S.done[it.key] + '">Machine QC</button></div></div>';
+        }
+        return '<div class="trow"><div class="tname">' + LABEL[k] + '</div><div class="chips">' +
+          list.map(function (i) {
+            return '<button class="chip" data-done="' + i.key + '" aria-pressed="' + !!S.done[i.key] + '">Pt ' + i.n +
+              (i.extra ? ' <span class="x">' + i.extra + '</span>' : '') + '</button>';
+          }).join("") + '</div></div>';
+      }).join("");
+      html += '<section class="block ' + state + '"><div class="stamp">' + fmt(h) + (hasEarly ? '<br><span class="st">Start ' + fmt((h + 23) % 24) + '</span>' : '') + '</div><div class="rows">' + rows + '</div></section>';
+    });
+    var summary = '<div class="summary">' +
+      '<div class="stat"><div class="k">Done</div><div class="v">' + doneN + '/' + total + '</div></div>' +
+      '<div class="stat due"><div class="k">Late</div><div class="v">' + overdue + '</div></div>' +
+      '<div class="stat next"><div class="k">Next round</div><div class="v">' + (next === null ? "—" : fmt(next)) + '</div></div></div>';
+    app.innerHTML = banner() + summary + '<div class="rail">' + html + '</div>' + footer();
+  }
+
+  function taskEditor(p, t) {
+    var tk = p.tasks[t.key], id = "p" + p.n + "-" + t.key;
+    var sub;
+    if (t.key === "turns") {
+      var opts = '<option value="">Not set (use default times)</option>';
+      for (var i = 0; i < 14; i++) { var hh = (17 + i) % 24; opts += '<option value="' + hh + '"' + (tk.last === hh ? " selected" : "") + '>' + fmt(hh) + '</option>'; }
+      sub = '<label class="mini" for="lt-' + id + '">Last turned</label><select class="times sel-time" id="lt-' + id + '" data-lastturn="' + p.n + '">' + opts + '</select>' +
+        '<span class="next mono">Next: ' + (tk.times.length ? esc(fmtList(tk.times)) : "none this shift") + '</span>';
+    } else {
+      sub = '<input class="times" id="tt-' + id + '" data-times="' + p.n + '|' + t.key + '" inputmode="numeric" aria-label="' + t.label + ' times" value="' + esc(fmtList(tk.times)) + '">';
+    }
+    if (t.key === "accu") {
+      sub = '<div class="seg" role="group" aria-label="Accucheck type">' +
+        ['achs', 'q6'].map(function (m) {
+          return '<button data-accumode="' + p.n + '|' + m + '" aria-pressed="' + (tk.mode === m) + '">' + ACCU_LABEL[m] + '</button>';
+        }).join("") + '</div>' + sub;
+    }
+    if (t.key === "weight") {
+      sub += '<div class="seg" role="group" aria-label="Weight type">' +
+        ['standing', 'bed'].map(function (m) {
+          return '<button data-mode="' + p.n + '|' + m + '" aria-pressed="' + (tk.mode === m) + '">' + (m === "bed" ? "Bed scale" : "Standing") + '</button>';
+        }).join("") + '</div>';
+    }
+    return '<div class="task' + (tk.on ? "" : " off") + '"><input type="checkbox" id="cb-' + id + '" data-toggle="' + p.n + '|' + t.key + '"' + (tk.on ? " checked" : "") + '>' +
+      '<label for="cb-' + id + '">' + t.label + '</label><div class="sub">' + sub + '</div></div>';
+  }
+
+  // Tasks every patient gets by default; tucked behind "Show more" in the editor
+  var BASE = ["vitals", "dinner", "tele"];
+  var ON_TIME = ["turns", "qc"];
+  var showMore = {};
+  function baseSection(p) {
+    var on = [], off = [];
+    BASE.forEach(function (k) {
+      var t = p.tasks[k];
+      var name = LABEL[k];
+      (t.on ? on : off).push(name);
+    });
+    var open = !!showMore[p.n];
+    var summary = '<div class="base-sum"><div class="base-text"><span class="k">Standard</span> ' +
+      (on.length ? esc(on.join(" · ")) : "None") +
+      (off.length ? '<br><span class="off-note">Off: ' + esc(off.join(", ")) + '</span>' : '') + '</div>' +
+      '<button class="btn ghost" data-more="' + p.n + '" aria-expanded="' + open + '">' + (open ? "Show less" : "Show more") + '</button></div>';
+    var body = open ? TASKS.filter(function (t) { return BASE.indexOf(t.key) > -1; }).map(function (t) { return taskEditor(p, t); }).join("") : "";
+    return summary + body;
+  }
+
+  function renderPatients() {
+    var slots = "";
+    for (var n = 1; n <= 24; n++) {
+      var on = !!S.patients[n], sel = S.sel === n;
+      slots += '<button class="slot' + (on ? " on" : "") + (sel ? " sel" : "") + '" data-slot="' + n + '" aria-pressed="' + on + '" aria-label="Patient slot ' + n + (on ? ", assigned" : "") + '">' + n + '</button>';
+    }
+    var ed = "";
+    var p = S.sel && S.patients[S.sel];
+    if (p) {
+      ed = '<div class="editor"><div class="ed-head"><strong>Pt ' + p.n + '</strong>' +
+        '<button class="btn ghost" data-remove="' + p.n + '">Remove from shift</button></div>' +
+        '<div class="task"><input type="checkbox" id="cb-p' + p.n + '-bundle" data-bundle="' + p.n + '"' + (p.bundle ? " checked" : "") + '>' +
+        '<label for="cb-p' + p.n + '-bundle">Bundle care</label></div>' +
+        TASKS.filter(function (t) { return BASE.indexOf(t.key) < 0; })
+          .sort(function (a, b) { return (a.key === "weight" ? -1 : 0) - (b.key === "weight" ? -1 : 0); })
+          .map(function (t) { return taskEditor(p, t); }).join("") +
+        baseSection(p) + '</div>';
+    } else {
+      ed = '<div class="empty">Tap a number to add that patient to your assignment.</div>';
+    }
+    app.innerHTML = banner() +
+      '<h2>Your assignment</h2>' +
+      '<div class="slots">' + slots + '</div>' + ed + footer();
+  }
+
+  function renderTimes() {
+    var rows = SETTING_ROWS.map(function (t) {
+      return '<div class="task"><span></span><label for="dt-' + t.key + '">' + t.label + '</label><div class="sub">' +
+        '<input class="times" id="dt-' + t.key + '" data-deftimes="' + t.key + '" inputmode="numeric" value="' + esc(fmtList(S.defaults[t.key])) + '"></div></div>';
+    }).join("");
+    var qc = S.unit.qc;
+    var qcRow = '<div class="task' + (qc.on ? "" : " off") + '"><input type="checkbox" id="cb-qc" data-qc="1"' + (qc.on ? " checked" : "") + '>' +
+      '<label for="cb-qc">Glucometer control check</label><div class="sub"><input class="times" id="tt-qc" data-qctimes="1" inputmode="numeric" value="' + esc(fmtList(qc.times)) + '"></div></div>';
+    app.innerHTML = banner() +
+      '<div class="set-head"><h2>Settings</h2><button class="btn" data-act="close-settings">Done</button></div>' +
+      '<h2>Default times</h2><p class="hint">New patients start with these times. The AC/HS and Q6 buttons on each patient fill in the accucheck times here.</p>' +
+      '<div class="editor" style="margin-top:0">' + rows + '<div style="padding-top:12px"><button class="btn" data-act="apply-defaults">Apply to current patients</button></div></div>' +
+      '<h2>Unit tasks</h2><p class="hint">Tasks that belong to the shift, not to a patient.</p>' +
+      '<div class="editor" style="margin-top:0">' + qcRow + '</div>' + footer();
+  }
+
+  function footer() {
+    var clear = confirming
+      ? '<div class="confirm"><span>Clear every patient and checkmark?</span><button class="btn danger" data-act="clear-yes">Clear shift</button><button class="btn" data-act="clear-no">Cancel</button></div>'
+      : '<div><button class="btn" data-act="clear">Clear shift</button></div>';
+    return '<div class="foot">' + clear +
+      '<p>A personal reminder list, not the record of care. Current orders and your nurse always win. This page holds no names or bed numbers, and it saves only in this browser on this phone.</p></div>';
+  }
+
+  function render() {
+    clock();
+    document.getElementById("settings-btn").setAttribute("aria-pressed", String(S.tab === "times"));
+    ["timeline", "patients"].forEach(function (t) {
+      document.getElementById("tab-" + t).setAttribute("aria-selected", String(S.tab === t));
+    });
+    if (S.tab === "patients") renderPatients();
+    else if (S.tab === "times") renderTimes();
+    else renderTimeline();
+  }
+
+  document.querySelector(".tabs").addEventListener("click", function (e) {
+    var b = e.target.closest("[data-tab]"); if (!b) return;
+    S.tab = b.getAttribute("data-tab"); confirming = false; save(); render();
+  });
+
+  document.getElementById("settings-btn").addEventListener("click", function () {
+    if (S.tab === "times") S.tab = S.prevTab || "timeline";
+    else { S.prevTab = S.tab; S.tab = "times"; }
+    confirming = false; save(); render(); window.scrollTo(0, 0);
+  });
+
+  app.addEventListener("click", function (e) {
+    var el;
+    if ((el = e.target.closest("[data-done]"))) {
+      var k = el.getAttribute("data-done");
+      if (S.done[k]) delete S.done[k]; else S.done[k] = true;
+      save(); render(); return;
+    }
+    if ((el = e.target.closest("[data-slot]"))) {
+      var n = +el.getAttribute("data-slot");
+      if (!S.patients[n]) S.patients[n] = newPatient(n, S.defaults);
+      S.sel = n; save(); render(); return;
+    }
+    if ((el = e.target.closest("[data-remove]"))) {
+      var r = +el.getAttribute("data-remove");
+      delete S.patients[r];
+      Object.keys(S.done).forEach(function (k) { if (k.split("|")[0] === String(r)) delete S.done[k]; });
+      S.sel = null; save(); render(); toast("Pt " + r + " removed"); return;
+    }
+    if ((el = e.target.closest("[data-more]"))) {
+      var mn = el.getAttribute("data-more"); showMore[mn] = !showMore[mn]; render(); return;
+    }
+    if ((el = e.target.closest("[data-accumode]"))) {
+      var am = el.getAttribute("data-accumode").split("|"), acc = S.patients[am[0]].tasks.accu;
+      acc.mode = am[1]; acc.times = S.defaults[am[1]].slice(); acc.on = true;
+      save(); render(); toast("Pt " + am[0] + " accucheck: " + ACCU_LABEL[am[1]] + " " + fmtList(acc.times)); return;
+    }
+    if ((el = e.target.closest("[data-mode]"))) {
+      var pm = el.getAttribute("data-mode").split("|");
+      S.patients[pm[0]].tasks.weight.mode = pm[1]; save(); render(); return;
+    }
+    if ((el = e.target.closest("[data-act]"))) {
+      var a = el.getAttribute("data-act");
+      if (a === "close-settings") { S.tab = S.prevTab || "timeline"; save(); render(); window.scrollTo(0, 0); }
+      else if (a === "clear") { confirming = true; render(); }
+      else if (a === "clear-no") { confirming = false; render(); }
+      else if (a === "clear-yes" || a === "start-own") {
+        var keepDefaults = S.example ? defaults() : S.defaults, keepUnit = S.unit;
+        S = blank(); S.defaults = keepDefaults; S.unit = keepUnit;
+        confirming = false; save(); render(); toast("Shift cleared");
+      } else if (a === "apply-defaults") {
+        Object.keys(S.patients).forEach(function (n) {
+          KEYS.forEach(function (k) {
+            var t = S.patients[n].tasks[k];
+            if (k === "turns" && t.last != null) return;
+            t.times = (k === "accu" ? S.defaults[t.mode] : S.defaults[k]).slice();
+          });
+        });
+        save(); toast("Applied to " + Object.keys(S.patients).length + " patients");
+      }
+    }
+  });
+
+  app.addEventListener("change", function (e) {
+    var el = e.target, v;
+    if ((v = el.getAttribute("data-lastturn"))) {
+      var tt = S.patients[v].tasks.turns;
+      if (el.value === "") { tt.last = null; tt.times = S.defaults.turns.slice(); }
+      else { tt.last = +el.value; tt.times = turnsFrom(tt.last); tt.on = true; }
+      save(); render(); toast("Pt " + v + " turns: " + (tt.times.length ? fmtList(tt.times) : "none this shift")); return;
+    }
+    if ((v = el.getAttribute("data-bundle"))) {
+      S.patients[v].bundle = el.checked; save(); render(); toast(el.checked ? "Pt " + v + ": 0200 vitals skipped" : "Pt " + v + ": 0200 vitals back on"); return;
+    }
+    if ((v = el.getAttribute("data-toggle"))) {
+      var pk = v.split("|"); S.patients[pk[0]].tasks[pk[1]].on = el.checked; save(); render(); return;
+    }
+    if ((v = el.getAttribute("data-times"))) {
+      var pt = v.split("|"), times = parseTimes(el.value);
+      if (!times.length) { toast("Enter times like 2200 0200"); el.value = fmtList(S.patients[pt[0]].tasks[pt[1]].times); return; }
+      S.patients[pt[0]].tasks[pt[1]].times = times; save(); el.value = fmtList(times); toast("Times saved"); return;
+    }
+    if ((v = el.getAttribute("data-deftimes"))) {
+      var dt = parseTimes(el.value);
+      if (!dt.length) { toast("Enter times like 2200 0200"); el.value = fmtList(S.defaults[v]); return; }
+      S.defaults[v] = dt; save(); el.value = fmtList(dt); toast("Default saved"); return;
+    }
+    if (el.getAttribute("data-qc")) { S.unit.qc.on = el.checked; save(); render(); return; }
+    if (el.getAttribute("data-qctimes")) {
+      var qt = parseTimes(el.value);
+      if (!qt.length) { toast("Enter a time like 0100"); el.value = fmtList(S.unit.qc.times); return; }
+      S.unit.qc.times = qt; save(); el.value = fmtList(qt); toast("Saved");
+    }
+  });
+
+  render();
+  setInterval(function () {
+    clock();
+    if (S.tab === "timeline") render();
+  }, 60000);
+})();
+</script>
+
+</body>
+</html>
